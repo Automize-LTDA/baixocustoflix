@@ -47,6 +47,14 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Normalize req.url for Vercel Serverless Function execution
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith('/api')) {
+    req.url = '/api' + (req.url.startsWith('/') ? '' : '/') + req.url;
+  }
+  next();
+});
+
 // HTML decode helper
 function decodeHtmlEntities(str) {
   if (!str) return '';

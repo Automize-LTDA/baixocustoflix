@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Heart, Loader2 } from 'lucide-react';
 import { getWatchHistoryFromSupabase, saveWatchItemToSupabase, type DBWatchItem } from './lib/supabase';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 // Build user profile from localStorage after login
 function buildProfileFromSession(): UserProfile | null {
@@ -230,8 +230,12 @@ function App() {
         if (selectedYear) url += `year=${selectedYear}&`;
 
         const res = await fetch(url);
-        const data = await res.json();
-        setContentList(data);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setContentList(data);
+          }
+        }
       } catch (err) {
         console.error('Erro ao carregar catálogo:', err);
       }
@@ -328,9 +332,9 @@ function App() {
   const featuredItem = useMemo(() => {
     if (contentList.length === 0) return null;
     // O filme inicial deve ser A Odisseia (The Odyssey)
-    const odyssey = contentList.find(item => 
-      item.id.includes('odisseia') || 
-      item.title.toLowerCase().includes('odisseia') || 
+    const odyssey = contentList.find(item =>
+      item.id.includes('odisseia') ||
+      item.title.toLowerCase().includes('odisseia') ||
       item.title.toLowerCase().includes('odyssey')
     );
     if (odyssey) return odyssey;
