@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-obsidian text-slate-200 font-sans antialiased overflow-x-hidden;
+    background-color: #08080a;
+  }
+
+  /* Custom Premium Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #08080a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #23232c;
+    border-radius: 3px;
+    transition: background 0.3s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #d4af37;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(18, 18, 22, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(35, 35, 44, 0.5);
+  }
+
+  .glass-header {
+    background: rgba(8, 8, 10, 0.8);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(35, 35, 44, 0.4);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  }
+
+  .gold-border-glow {
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.3), 0 0 15px rgba(212, 175, 55, 0.1);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom styles for range slider (Player duration & Volume) */
+input[type="range"].player-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+input[type="range"].player-slider:focus {
+  outline: none;
+}
+
+input[type="range"].player-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: #23232c;
+  border-radius: 2px;
+}
+
+input[type="range"].player-slider::-webkit-slider-thumb {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: #d4af37;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px;
+  transition: transform 0.1s;
+}
+
+input[type="range"].player-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+  background: #f5d061;
+}
