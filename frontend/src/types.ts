@@ -32,6 +32,7 @@ export interface ContentItem {
   trailerUrl: string;
   cast: CastMember[];
   episodes?: Episode[];
+  tmdbId?: number;
 }
 
 export interface RecentEpisode {

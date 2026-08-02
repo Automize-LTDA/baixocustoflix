@@ -14,8 +14,7 @@ import type { ContentItem, RecentEpisode, UserProfile } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Heart, Loader2 } from 'lucide-react';
 import { getWatchHistoryFromSupabase, saveWatchItemToSupabase, type DBWatchItem } from './lib/supabase';
-
-const API_BASE = '/api';
+import { contentDatabase, initialRecentEpisodes } from './data/catalog';
 
 // Build user profile from localStorage after login
 function buildProfileFromSession(): UserProfile | null {
@@ -109,7 +108,7 @@ function App() {
     localStorage.removeItem('selectedProfileAvatar');
   };
 
-  // ─── Load backend data & Supabase Watch History (only when logged in) ─────────────
+  // ─── Load Supabase Watch History & Initial Favorites ─────────────────────────────
   useEffect(() => {
     if (!isLoggedIn || !selectedProfileName) return;
 
@@ -119,12 +118,7 @@ function App() {
         setError(null);
 
         const currentUsername = localStorage.getItem('loggedUsername') || 'usuario';
-
-        const [epRes, favRes, supabaseHistory] = await Promise.all([
-          fetch(`${API_BASE}/recent-episodes`).catch(() => null),
-          fetch(`${API_BASE}/favorites`).catch(() => null),
-          getWatchHistoryFromSupabase(currentUsername)
-        ]);
+        const supabaseHistory = await getWatchHistoryFromSupabase(currentUsername);
 
         if (supabaseHistory && supabaseHistory.length > 0) {
           const mappedEpisodes: RecentEpisode[] = supabaseHistory.map(item => ({
@@ -139,17 +133,16 @@ function App() {
             addedTime: item.added_time || 'Hoje'
           }));
           setRecentEpisodes(mappedEpisodes);
-        } else if (epRes && epRes.ok) {
-          const epData = await epRes.json();
-          setRecentEpisodes(epData);
+        } else {
+          setRecentEpisodes(initialRecentEpisodes);
         }
 
-        if (favRes && favRes.ok) {
-          const favData = await favRes.json();
-          setFavorites(favData);
-        }
+        const storedFavIds: string[] = JSON.parse(localStorage.getItem('user_favorites') || '[]');
+        const favItems = contentDatabase.filter(item => storedFavIds.includes(item.id));
+        setFavorites(favItems);
       } catch (err) {
         console.error('Erro ao carregar dados iniciais:', err);
+        setRecentEpisodes(initialRecentEpisodes);
       } finally {
         setLoading(false);
       }
@@ -217,84 +210,74 @@ function App() {
     });
   };
 
-  // ─── Fetch catalog (debounced on filter changes) ─────────────────────────────
+  // ─── Filter catalog locally ──────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn || !selectedProfileName) return;
 
-    const fetchCatalog = async () => {
-      try {
-        let url = `${API_BASE}/content?`;
-        if (searchQuery) url += `q=${encodeURIComponent(searchQuery)}&`;
-        if (selectedCategory && selectedCategory !== 'all') url += `category=${selectedCategory}&`;
-        if (selectedGenre) url += `genre=${encodeURIComponent(selectedGenre)}&`;
-        if (selectedYear) url += `year=${selectedYear}&`;
+    let filtered = [...contentDatabase];
 
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            setContentList(data);
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao carregar catálogo:', err);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.synopsis?.toLowerCase().includes(q) ||
+        item.genres?.some(g => g.toLowerCase().includes(q))
+      );
+    }
+
+    if (selectedCategory && selectedCategory !== 'all') {
+      if (selectedCategory === 'movie') {
+        filtered = filtered.filter(item => item.category === 'movie');
+      } else if (selectedCategory === 'series') {
+        filtered = filtered.filter(item => item.category === 'series');
+      } else if (selectedCategory === 'classic') {
+        filtered = filtered.filter(item => item.isClassic);
+      } else if (selectedCategory === 'release') {
+        filtered = filtered.filter(item => item.isRelease);
       }
-    };
+    }
 
-    fetchCatalog();
+    if (selectedGenre) {
+      const genreStr = selectedGenre.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.genres?.some(g => g.toLowerCase() === genreStr)
+      );
+    }
+
+    if (selectedYear) {
+      const yearVal = parseInt(selectedYear, 10);
+      if (!isNaN(yearVal)) {
+        filtered = filtered.filter(item => item.year === yearVal);
+      }
+    }
+
+    setContentList(filtered);
   }, [searchQuery, selectedCategory, selectedGenre, selectedYear, isLoggedIn, selectedProfileName]);
 
   // ─── Favorite actions ─────────────────────────────────────────────────────────
-  const handleToggleFavorite = async (id: string) => {
-    try {
-      const isFav = favorites.some(item => item.id === id);
-      let res;
-      if (isFav) {
-        res = await fetch(`${API_BASE}/favorites/${id}`, { method: 'DELETE' });
-      } else {
-        res = await fetch(`${API_BASE}/favorites`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id }),
-        });
-      }
-      if (res.ok) {
-        const updatedFavs = await res.json();
-        setFavorites(updatedFavs);
-      }
-    } catch (err) {
-      console.error('Erro ao alternar favoritos:', err);
+  const handleToggleFavorite = (id: string) => {
+    const storedFavIds: string[] = JSON.parse(localStorage.getItem('user_favorites') || '[]');
+    let updatedIds: string[];
+    if (storedFavIds.includes(id)) {
+      updatedIds = storedFavIds.filter(favId => favId !== id);
+    } else {
+      updatedIds = [...storedFavIds, id];
     }
+    localStorage.setItem('user_favorites', JSON.stringify(updatedIds));
+    const favItems = contentDatabase.filter(item => updatedIds.includes(item.id));
+    setFavorites(favItems);
   };
 
   const handleUpdateProfile = async (updated: UserProfile) => {
-    try {
-      const res = await fetch(`${API_BASE}/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUserProfile(data);
-      } else {
-        // If backend is offline, update locally
-        setUserProfile(updated);
-      }
-    } catch {
-      setUserProfile(updated);
-    }
+    setUserProfile(updated);
+    localStorage.setItem('selectedProfileName', updated.name);
+    if (updated.avatar) localStorage.setItem('selectedProfileAvatar', updated.avatar);
   };
 
-  const handleRecentEpisodeClick = async (seriesId: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/content/${seriesId}`);
-      if (res.ok) {
-        const item = await res.json();
-        setSelectedContent(item);
-      }
-    } catch (err) {
-      console.error('Erro ao buscar série por id:', err);
+  const handleRecentEpisodeClick = (seriesId: string) => {
+    const item = contentDatabase.find(c => c.id === seriesId);
+    if (item) {
+      setSelectedContent(item);
     }
   };
 
