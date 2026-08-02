@@ -5,5 +5,9 @@
   "scripts": {
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend"
+  },
+  "dependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^8.1.1"
   }
 }
